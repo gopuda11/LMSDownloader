@@ -1,24 +1,30 @@
 {
-  "manifest_version": 2,
-  "name": "DKU Video Downloader",
-  "version": "0.3",
-  "author": "zini",
-  "description": "클릭 몇 번으로 간편하게 이러닝 강의를 저장하고 복습하세요!",
-  "browser_action": {
-    "name": "DKU Video Downloader",
+  "manifest_version": 3,
+  "name": "LMS Video Downloader",
+  "version": "1.0.0",
+  "author": "gopuda11 (forked from zinirun)",
+  "description": "단국대 및 주요 대학 이러닝(LearningX / Canvas / Uniplayer) 강의 영상을 손쉽게 감지하고 다운로드합니다.",
+  "action": {
     "default_icon": "icon-128.png",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_title": "LMS Video Downloader"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://dankook.commsonscdn.com/*"],
-      "js": ["popup.js"],
-      "run_at": "document_end"
-    }
-  ],
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
-  "permissions": ["activeTab", "downloads", "*://*/*"],
-  "icons": { "16": "icon-16.png", "48": "icon-48.png", "128": "icon-128.png" }
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "declarativeNetRequest",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  }
 }
