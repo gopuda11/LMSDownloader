@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
   "name": "LMS Video Downloader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "gopuda11 (forked from zinirun)",
   "description": "단국대 및 주요 대학 이러닝(LearningX / Canvas / Uniplayer) 강의 영상을 손쉽게 감지하고 다운로드합니다.",
   "browser_specific_settings": {
     "gecko": {
       "id": "lms-downloader@gopuda11.github.io",
-      "strict_min_version": "109.0"
+      "strict_min_version": "113.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "action": {
