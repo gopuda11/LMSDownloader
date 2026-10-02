@@ -1,29 +1,50 @@
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fzinirun%2FLMSDownloader&count_bg=%2359AAE9&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com) ![vanilla-js](http://vanilla-js.com/assets/button.png)
-# LMSDownloader
-🐻 단국대학교 이러닝 다운로더
+# LMS Video Downloader (Manifest V3)
 
-![dankook-logo](https://github.com/zinirun/LMSDownloader/blob/master/icon-128.png)
-(본 로고 이미지와 프로그램 아이콘은 [단국대학교](http://www.dankook.ac.kr/web/kor/-ui-)의 저작물입니다.)
+단국대학교 및 전국 주요 대학 이러닝(LearningX / Canvas LMS / Uniplayer) 강의 동영상을 감지하고 손쉽게 다운로드할 수 있는 Chrome 확장 프로그램입니다.  
+([zinirun/LMSDownloader](https://github.com/zinirun/LMSDownloader) 포크 및 현대화 버전)
 
-- 단국대학교 이러닝 강의 컨텐츠를 다운로드할 수 있는 <img src="https://www.zotero.org/static/images/icons/chrome-icon-128%402x.png" width=20> 크롬 확장 프로그램입니다.
-- LearningX 기반의 타학교 이러닝 시스템에 약간의 코드 변형시 적용할 수 있을 것 같으며 fork 후 수정/배포 환영합니다.
+---
 
-> 본 프로그램은 단국대학교/관련 기관과 관련이 없으며, 단국대학교가 보증하지 않았습니다. 단순히 학우들의 원만한 이러닝 학습을 위한 프로그램이며 어떠한 수익도 창출하지 않음을 알려드립니다.
+## 🚀 주요 개선 사항 (v1.0.0)
 
-## ✔️ 사용 방법
-[Chrome 웹 스토어 다운로드](https://chrome.google.com/webstore/detail/dku-video-downloader/defdpphnlpilkneopmaafiakomkflpgj?hl=ko)
+1. **Chrome Manifest V3 완벽 대응**
+   - 구형 Manifest V2 폐지에 맞추어 Service Worker(`background.js`) 및 `action` API로 전면 개편.
+   - `chrome.tabs.executeScript` 제거 및 최신 `chrome.scripting.executeScript` 적용.
+2. **별도 백엔드/Node.js 서버 없이 100% 브라우저 자체 다운로드**
+   - 일부 CDN의 `Referer` 검증 차단(403 Forbidden) 문제를 `chrome.declarativeNetRequest` 동적 규칙을 통해 확장 프로그램 내부에서 자체 해결.
+3. **크로스 오리진 4단 중첩 iframe 탐색 한계 극복**
+   - 브라우저 보안 정책(SOP)으로 막히던 iframe DOM 접근 대신, `allFrames: true` 컨텍스트 인젝션을 통해 내부 플레이어와 직접 통신.
+4. **전국 주요 대학 이러닝/LearningX 호환**
+   - 단국대(`nlms.dankook.ac.kr`, `clms.dankook.ac.kr`)
+   - 경희대(`khcanvas.khu.ac.kr`, `commons.khu.ac.kr`)
+   - 중앙대, 경인교대, 한양대 등 Xinics / Uniplayer / HTML5 Video 기반 LMS 자동 감지
+5. **현대적인 UI & 편의 기능**
+   - 강의 제목 자동 파일명 적용 및 사용자 수정 지원
+   - 브라우저 다운로드 / 새 탭에서 재생 / 스트림 URL 복사 버튼 제공
 
+---
 
-[사용법/제작자](https://zinirun.github.io/LMSDownloader/index.html) 문서를 참조하세요.
+## 🛠️ 설치 방법 (Chrome / Edge / Brave / Whale)
 
-## ✔️ 제작 동기
-새로운 이러닝의 강의는 열람 기간이 정해져 있거나, 완강하지 않으면 앞의 내용을 볼 수 없는 등 불편함이 많아서 마음 편하게 강의 동영상을 다운로드 받아 놓고 보기 위해 제작했습니다.
+1. 브라우저 주소창에 `chrome://extensions/` 입력 후 접속
+2. 우측 상단의 **개발자 모드(Developer mode)** 스위치 켜기
+3. 좌측 상단 **[압축해제된 확장 프로그램을 로드합니다]** 버튼 클릭
+4. 이 프로젝트 폴더(`.../scratch/LMSDownloader`) 선택
 
-> 예를 들어 이러닝 영상은 학습 완료를 위해 틀어놓고 다운로드 받은 영상으로 배속을 이용하거나, 맘편히 복습할 수 있습니다.
+---
 
-## ✔️ 기여하기/아이디어 제안
-본 다운로더는 크롬 확장기능을 이용한 Javascript 기반의 프로그램입니다. `popup.js`에서 발생한 다운로드 메시지를 스캔한 비디오 주소와 함께 보내면 `background.js`에서 받아서 `chrome.downloads` 모듈을 통해 다운로드하는 방식입니다.
+## 📖 사용 방법
 
-버튼 하나로 이러닝 강의컨텐츠에서 바로 다운받을 수 있게 만들고 싶었지만, 실제 강의 동영상은 4개의 `iframe`으로 감싸져 있고, 마지막 `iframe`은 외부의 접근을 막아놓아서 `이러닝 스캔` 후 `동영상 다운로드`의 로직을 사용할 수 밖에 없었습니다.
+1. 대학교 이러닝 사이트에 로그인하여 수강할 강의 페이지로 이동합니다.
+2. 강의 동영상을 재생합니다 (로딩/인트로가 지나고 본 강의 영상이 재생될 때).
+3. 브라우저 우측 상단 퍼즐 아이콘에서 **LMS Downloader** 아이콘을 클릭합니다.
+4. 감지된 강의 목록에서 제목을 확인/수정한 뒤 **[다운로드]** 버튼을 누르면 다운로드가 시작됩니다.
 
-> 😀 더 나은 방식이나 새로운 아이디어, 바라는 점이 있다면 코드를 작성하여 Pull Request를 보내주시거나, 개발자가 아니시라면 [여기](https://zinirun.github.io/2020/09/07/project-dku-lms-downloader/)에 댓글을 달아주세요.
+> 💡 **참고:** 목록에 영상이 바로 나타나지 않는 경우, 동영상을 1~2초간 재생한 상태에서 팝업 상단의 **[새로고침 / 다시 스캔(↻)]** 버튼을 눌러주세요.
+
+---
+
+## ⚠️ 유의사항
+
+- 본 프로그램은 학생들의 개인 학습 및 복습 편의를 위해 제작된 비공식 오픈소스 도구입니다.
+- 강의 영상은 교수자 및 교육기관의 저작물입니다. 다운로드한 강의를 무단 배포, 공유, 재업로드하는 행위는 저작권법에 위배될 수 있으므로 오직 개인 학습 용도로만 사용해야 합니다.
