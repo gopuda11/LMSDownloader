@@ -24,12 +24,17 @@
 
 ---
 
-## 🛠️ 설치 방법 (Chrome / Edge / Brave / Whale)
+## 🛠️ 설치 방법
 
+### 🦊 파이어폭스 (Firefox)
+1. 파이어폭스 주소창에 `about:debugging#/runtime/this-firefox` 입력 후 접속
+2. **[임시 부가 기능 로드 (Load Temporary Add-on...)]** 버튼 클릭
+3. 이 프로젝트 폴더 안의 `manifest.json` 파일 선택 (즉시 활성화)
+
+### 🌐 크롬 및 크로미움 계열 (Chrome / Edge / Whale / Brave)
 1. 브라우저 주소창에 `chrome://extensions/` 입력 후 접속
 2. 우측 상단의 **개발자 모드(Developer mode)** 스위치 켜기
-3. 좌측 상단 **[압축해제된 확장 프로그램을 로드합니다]** 버튼 클릭
-4. 이 프로젝트 폴더(`.../scratch/LMSDownloader`) 선택
+3. 좌측 상단 **[압축해제된 확장 프로그램을 로드합니다]** 클릭 후 이 프로젝트 폴더 선택
 
 ---
 

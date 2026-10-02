@@ -19,8 +19,10 @@
   padding: 0;
 }
 
+html,
 body {
   width: 360px;
+  min-width: 360px;
   min-height: 280px;
   max-height: 540px;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", Pretendard, sans-serif;
