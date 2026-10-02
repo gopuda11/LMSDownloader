@@ -11,6 +11,9 @@
       "data_collection_permissions": {
         "required": ["none"]
       }
+    },
+    "gecko_android": {
+      "strict_min_version": "113.0"
     }
   },
   "action": {
@@ -19,8 +22,7 @@
     "default_title": "LMS Video Downloader"
   },
   "background": {
-    "scripts": ["background.js"],
-    "service_worker": "background.js"
+    "scripts": ["background.js"]
   },
   "declarative_net_request": {
     "rule_resources": [

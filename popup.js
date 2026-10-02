@@ -26,7 +26,7 @@ async function init() {
 async function refreshScan(isManual = false) {
   showLoading();
   detectedVideos.clear();
-  videoList.innerHTML = '';
+  videoList.replaceChildren();
 
   try {
     const tab = await getActiveTab();
@@ -323,7 +323,7 @@ function parseUniplayerXml(xmlText, origin, embedUrl) {
 }
 
 function renderVideoList() {
-  videoList.innerHTML = '';
+  videoList.replaceChildren();
   let index = 1;
 
   detectedVideos.forEach((video) => {
@@ -334,46 +334,69 @@ function renderVideoList() {
       video.title && video.title.length > 1 ? video.title : `강의영상_${index}`
     );
 
-    card.innerHTML = `
-      <div class="video-meta">
-        <span class="type-pill">${escapeHtml(video.ext.toUpperCase())}</span>
-        <span class="source-pill">${escapeHtml(video.sourceType || 'LMS')}</span>
-      </div>
-      <div class="filename-input-group">
-        <label>저장 파일명</label>
-        <div class="input-with-ext">
-          <input type="text" class="filename-input" value="${escapeHtml(defaultFilename)}" />
-          <span class="ext-label">.${escapeHtml(video.ext)}</span>
-        </div>
-      </div>
-      <div class="card-actions">
-        <button class="btn btn-primary download-btn">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-          </svg>
-          다운로드
-        </button>
-        <button class="btn btn-secondary open-btn" title="새 탭에서 재생">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-          </svg>
-          새 탭
-        </button>
-        <button class="btn btn-secondary copy-btn" title="영상 주소 복사">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-          </svg>
-          복사
-        </button>
-      </div>
-      <div class="status-msg hidden"></div>
-    `;
+    // 1. Meta
+    const meta = document.createElement('div');
+    meta.className = 'video-meta';
+    const typePill = document.createElement('span');
+    typePill.className = 'type-pill';
+    typePill.textContent = (video.ext || 'mp4').toUpperCase();
+    const srcPill = document.createElement('span');
+    srcPill.className = 'source-pill';
+    srcPill.textContent = video.sourceType || 'LMS';
+    meta.appendChild(typePill);
+    meta.appendChild(srcPill);
+    card.appendChild(meta);
 
-    const input = card.querySelector('.filename-input');
-    const downloadBtn = card.querySelector('.download-btn');
-    const openBtn = card.querySelector('.open-btn');
-    const copyBtn = card.querySelector('.copy-btn');
-    const statusMsg = card.querySelector('.status-msg');
+    // 2. Filename input group
+    const group = document.createElement('div');
+    group.className = 'filename-input-group';
+    const label = document.createElement('label');
+    label.textContent = '저장 파일명';
+    const inputWithExt = document.createElement('div');
+    inputWithExt.className = 'input-with-ext';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'filename-input';
+    input.value = defaultFilename;
+
+    const extLabel = document.createElement('span');
+    extLabel.className = 'ext-label';
+    extLabel.textContent = `.${video.ext || 'mp4'}`;
+
+    inputWithExt.appendChild(input);
+    inputWithExt.appendChild(extLabel);
+    group.appendChild(label);
+    group.appendChild(inputWithExt);
+    card.appendChild(group);
+
+    // 3. Actions
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'btn btn-primary download-btn';
+    downloadBtn.textContent = '⬇ 다운로드';
+
+    const openBtn = document.createElement('button');
+    openBtn.className = 'btn btn-secondary open-btn';
+    openBtn.title = '새 탭에서 재생';
+    openBtn.textContent = '↗ 새 탭';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn btn-secondary copy-btn';
+    copyBtn.title = '영상 주소 복사';
+    copyBtn.textContent = '📋 복사';
+
+    actions.appendChild(downloadBtn);
+    actions.appendChild(openBtn);
+    actions.appendChild(copyBtn);
+    card.appendChild(actions);
+
+    // 4. Status message
+    const statusMsg = document.createElement('div');
+    statusMsg.className = 'status-msg hidden';
+    card.appendChild(statusMsg);
 
     downloadBtn.addEventListener('click', async () => {
       const chosenName = input.value.trim() || `강의영상_${index}`;
@@ -394,11 +417,7 @@ function renderVideoList() {
         },
         (res) => {
           downloadBtn.disabled = false;
-          downloadBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-            </svg> 다운로드
-          `;
+          downloadBtn.textContent = '⬇ 다운로드';
 
           if (res && res.success) {
             statusMsg.className = 'status-msg success';
