@@ -45,7 +45,9 @@ function worker(store){
  const context={console,URL,Map,Date,fetch,AbortSignal,LMSRecovery:require('../recovery.js'),chrome:{
   storage:{session:storage},webRequest:{onBeforeRequest:{addListener(){}}},
   tabs:{onUpdated:{addListener(fn){updated=fn;}},onRemoved:{addListener(fn){removed=fn;}}},
-  runtime:{onMessage:{addListener(fn){listener=fn;}}}
+  runtime:{onMessage:{addListener(fn){listener=fn;}}},
+  declarativeNetRequest:{getDynamicRules:async()=>[],getSessionRules:async()=>[]},
+  downloads:{search:async()=>[],onChanged:{addListener(){}}}
  }};
  vm.createContext(context);vm.runInContext(source('background.js'),context);
  return {message:(request,sender={})=>new Promise(resolve=>{const handled=listener(request,sender,resolve);if(handled===undefined)resolve({});}),updated,removed};
