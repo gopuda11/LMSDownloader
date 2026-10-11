@@ -32,20 +32,18 @@
       <div id="empty-state" class="state-container hidden">
         <div class="empty-icon">📺</div>
         <h3>감지된 강의 영상이 없습니다</h3>
-        <p class="empty-tip">
-          페이지에서 <strong>강의 재생 버튼</strong>을 클릭한 뒤<br>
-          영상 재생이 시작되면 상단의 <strong>[다시 스캔]</strong>을 눌러주세요.
-        </p>
+        <p class="empty-tip">LMS에 로그인한 뒤 다운로드할 개별 강의 화면을 열어주세요.<br>기간이 종료된 강의도 자동으로 탐색합니다.</p>
         <button id="empty-rescan-btn" class="btn btn-primary">다시 스캔하기</button>
       </div>
 
       <div id="video-list" class="video-list hidden">
         <!-- Rendered dynamically -->
       </div>
+      <p id="automatic-status" class="status-msg" role="status" aria-live="polite">기간 종료 강의도 자동으로 찾습니다.</p>
     </main>
 
     <footer class="app-footer">
-      <span id="version-tag">v1.0.0</span>
+      <span id="version-tag">v1.2.0</span>
       <div class="footer-links">
         <a href="https://github.com/gopuda11/LMSDownloader" target="_blank" rel="noreferrer">GitHub</a>
         <span>·</span>
@@ -56,6 +54,7 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <script src="recovery.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

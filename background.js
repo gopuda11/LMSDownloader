@@ -1,7 +1,27 @@
 // background.js - Manifest V3 Service Worker
 
+if (typeof LMSRecovery === 'undefined') importScripts('recovery.js');
+
 const tabMediaMap = new Map();
 let dnrRuleCounter = 10000;
+const recoveryStore = chrome.storage?.session || chrome.storage?.local;
+const recoveryKey = tabId => `lms-recovery-tab-${tabId}`;
+const pendingStorage = new Map();
+
+function queueStorage(tabId, operation) {
+  const next = (pendingStorage.get(tabId) || Promise.resolve()).catch(() => {}).then(operation);
+  pendingStorage.set(tabId, next);
+  next.finally(() => { if (pendingStorage.get(tabId) === next) pendingStorage.delete(tabId); }).catch(() => {});
+  return next;
+}
+
+async function capturedMedia(tabId) {
+  await (pendingStorage.get(tabId) || Promise.resolve()).catch(() => {});
+  if (!recoveryStore) return [];
+  const key = recoveryKey(tabId);
+  const record = (await recoveryStore.get(key))[key];
+  return record ? [record] : [];
+}
 
 // Listen for network requests matching LMS video endpoints and media streams
 chrome.webRequest.onBeforeRequest.addListener(
@@ -56,25 +76,48 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 // Clear cache on tab navigation
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'loading') {
+  if (changeInfo.status === 'loading' || changeInfo.url) {
     tabMediaMap.delete(tabId);
+    if (recoveryStore) queueStorage(tabId, () => recoveryStore.remove(recoveryKey(tabId))).catch(() => {});
   }
 });
 
 // Clean up on tab close
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabMediaMap.delete(tabId);
+  if (recoveryStore) queueStorage(tabId, () => recoveryStore.remove(recoveryKey(tabId))).catch(() => {});
 });
 
 // Handle incoming messages from popup or content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'captureLearningItem') {
+    const match = String(sender.url || '').match(/^https:\/\/canvas\.dankook\.ac\.kr\/learningx\/lti\/lecture_attendance\/items\/view\/(\d+)(?:[/?#]|$)/);
+    const tabId = sender.tab?.id;
+    try {
+      if (!match || String(request.itemId) !== match[1] || !Number.isInteger(tabId) || tabId < 0 || !recoveryStore) throw new Error('Invalid lesson sender');
+      LMSRecovery.thumbnailRequest(request.thumbnail);
+    } catch {
+      sendResponse({ ok: false });
+      return false;
+    }
+    const record = {
+      type: 'commonsRecovery', url: request.thumbnail,
+      title: String(request.title || '').slice(0, 300),
+      itemId: request.itemId, pageUrl: sender.tab.url || '', timestamp: Date.now()
+    };
+    queueStorage(tabId, () => recoveryStore.set({ [recoveryKey(tabId)]: record }))
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
   if (request.action === 'getDetectedMedia') {
     const tabId = request.tabId;
-    const items = tabMediaMap.has(tabId)
-      ? Array.from(tabMediaMap.get(tabId).values())
-      : [];
-    sendResponse({ media: items });
-    return false;
+    const items = tabMediaMap.has(tabId) ? Array.from(tabMediaMap.get(tabId).values()) : [];
+    capturedMedia(tabId)
+      .then(captured => sendResponse({ media: [...captured, ...items] }))
+      .catch(() => sendResponse({ media: items }));
+    return true;
   }
 
   if (request.action === 'registerMedia') {
@@ -88,6 +131,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     sendResponse({ ok: true });
     return false;
+  }
+
+  if (request.action === 'recoverCommonsContent') {
+    LMSRecovery.recoverContent(request.thumbnail)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ error: err.name === 'TimeoutError' ? '콘텐츠 서버 응답 시간이 초과되었습니다. 다시 시도해주세요.' : err.message }));
+    return true;
   }
 
   if (request.action === 'fetchUniplayerXml') {

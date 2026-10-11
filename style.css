@@ -337,3 +337,11 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* Optional fallback for LearningX items whose player is no longer shown. */
+.recovery-panel { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 10px; }
+.recovery-panel summary { cursor: pointer; font-weight: 600; }
+.recovery-help { font-size: 12px; line-height: 1.6; color: #666; }
+.recovery-panel label { display: block; font-size: 12px; margin: 8px 0; }
+.recovery-panel input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; }
+.recovery-panel .status-msg { overflow-wrap: anywhere; }

@@ -1,28 +1,16 @@
 {
   "manifest_version": 3,
   "name": "LMS Video Downloader",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "author": "gopuda11 (forked from zinirun)",
-  "description": "단국대 및 주요 대학 이러닝(LearningX / Canvas / Uniplayer) 강의 영상을 손쉽게 감지하고 다운로드합니다.",
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "lms-downloader@gopuda11.github.io",
-      "strict_min_version": "113.0",
-      "data_collection_permissions": {
-        "required": ["none"]
-      }
-    },
-    "gecko_android": {
-      "strict_min_version": "113.0"
-    }
-  },
+  "description": "단국대학교 이러닝(LearningX / Canvas / Uniplayer) 강의 영상을 감지하고 다운로드합니다. 기간 종료 강의의 원본 자동 탐색을 지원합니다.",
   "action": {
     "default_icon": "icon-128.png",
     "default_popup": "popup.html",
     "default_title": "LMS Video Downloader"
   },
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
   "declarative_net_request": {
     "rule_resources": [
@@ -38,7 +26,8 @@
     "scripting",
     "downloads",
     "declarativeNetRequest",
-    "webRequest"
+    "webRequest",
+    "storage"
   ],
   "host_permissions": [
     "*://*/*"
@@ -47,5 +36,30 @@
     "16": "icon-16.png",
     "48": "icon-48.png",
     "128": "icon-128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://canvas.dankook.ac.kr/learningx/*"
+      ],
+      "js": [
+        "recovery.js",
+        "content-bridge.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://canvas.dankook.ac.kr/learningx/*"
+      ],
+      "js": [
+        "page-capture.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ],
+  "minimum_chrome_version": "111"
 }
