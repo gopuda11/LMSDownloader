@@ -11,6 +11,7 @@ const helpLink = document.getElementById('help-link');
 const recoveryStatus = document.getElementById('automatic-status');
 let scanRunning = false;
 let recoveryErrors = [];
+let materialCount = 0;
 
 const detectedVideos = new Map(); // key -> VideoInfo
 
@@ -45,6 +46,7 @@ async function refreshScan(isManual = false) {
     }
 
     updateSchoolBadge(tab.url || '');
+    materialCount = await scanMaterials(tab.id, tab.url);
 
     // 1. Fetch media intercepted by background service worker
     let bgMedia = await fetchBackgroundMedia(tab.id);
@@ -54,7 +56,7 @@ async function refreshScan(isManual = false) {
 
     // Old tabs opened before the update cannot have an early response hook.
     // Reload once automatically, then wait for the document-start collector.
-    if (!bgMedia.length && !frameScanResults.some(item => item.url) && isDankookLessonTab(tab.url)) {
+    if (!materialCount && !bgMedia.length && !frameScanResults.some(item => item.url) && isDankookLessonTab(tab.url)) {
       recoveryStatus.textContent = '강의 정보를 자동으로 다시 불러오는 중...';
       bgMedia = await reloadAndCollect(tab.id);
     }
@@ -89,7 +91,7 @@ async function refreshScan(isManual = false) {
     scanRunning = false;
     rescanBtn.disabled = false;
     emptyRescanBtn.disabled = false;
-    recoveryStatus.textContent = recoveryErrors[0] || (detectedVideos.size ? '영상 탐색이 완료되었습니다.' : '다운로드 가능한 원본을 찾지 못했습니다.');
+    recoveryStatus.textContent = scanStatus(detectedVideos.size, recoveryErrors, materialCount);
   }
 }
 
@@ -222,31 +224,6 @@ async function scanCurrentFrameInPage() {
     });
   }
 
-  // Re-read the GET request this LearningX item page already made. Do not guess API routes.
-  const itemMatch = currentUrl.match(/\/learningx\/lti\/lecture_attendance\/items\/view\/(\d+)/);
-  if (itemMatch) {
-    try {
-      const itemId = itemMatch[1];
-      const pageOrigin = new URL(currentUrl).origin;
-      const resourceUrls = [...new Set(performance.getEntriesByType('resource')
-        .filter(entry => ['fetch', 'xmlhttprequest'].includes(entry.initiatorType))
-        .map(entry => entry.name))].filter(value => {
-          try {
-            const u = new URL(value);
-            return u.origin === pageOrigin && u.pathname.includes('/learningx/') && u.pathname.endsWith(`/${itemId}`);
-          } catch { return false; }
-        });
-      for (const url of resourceUrls.slice(-2)) {
-        const response = await fetch(url, { credentials: 'same-origin', signal: AbortSignal.timeout(10000) });
-        if (!response.ok) throw new Error(`강의 정보 조회 실패 (HTTP ${response.status}). 로그인 상태를 확인해주세요.`);
-        const candidate = LMSRecovery.learningItemCandidate(await response.json(), itemId);
-        if (candidate) { items.push(candidate); break; }
-      }
-    } catch (error) {
-      items.push({ type: 'recoveryError', error: error.message });
-    }
-  }
-
   // 2. Scan iframes
   try {
     const iframes = document.querySelectorAll('iframe');
@@ -287,6 +264,31 @@ async function scanCurrentFrameInPage() {
       }
     }
   } catch (e) {}
+
+  // Re-read the GET request this LearningX item page already made. Do not guess API routes.
+  const itemMatch = currentUrl.match(/\/learningx\/lti\/lecture_attendance\/items\/view\/(\d+)/);
+  if (itemMatch && !items.some(item => item.type === 'direct' || item.type === 'embed')) {
+    try {
+      const itemId = itemMatch[1];
+      const pageOrigin = new URL(currentUrl).origin;
+      const resourceUrls = [...new Set(performance.getEntriesByType('resource')
+        .filter(entry => ['fetch', 'xmlhttprequest'].includes(entry.initiatorType))
+        .map(entry => entry.name))].filter(value => {
+          try {
+            const u = new URL(value);
+            return u.origin === pageOrigin && u.pathname.includes('/learningx/') && u.pathname.endsWith(`/${itemId}`);
+          } catch { return false; }
+        });
+      for (const url of resourceUrls.slice(-2)) {
+        const response = await fetch(url, { credentials: 'same-origin', signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error(`강의 정보 조회 실패 (HTTP ${response.status}). 로그인 상태를 확인해주세요.`);
+        const candidate = LMSRecovery.learningItemCandidate(await response.json(), itemId);
+        if (candidate) { items.push(candidate); break; }
+      }
+    } catch (error) {
+      items.push({ type: 'recoveryError', error: error.message });
+    }
+  }
 
   return {
     currentUrl,
@@ -590,4 +592,51 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+
+// Material conversion lives in a tab so closing the popup cannot interrupt it.
+document.getElementById('local-pdf-btn').addEventListener('click', () => chrome.tabs.create({url: chrome.runtime.getURL('converter.html')}));
+async function scanMaterials(tabId, tabURL) {
+  const section = document.getElementById('document-section');
+  const list = document.getElementById('document-list');
+  section.classList.add('hidden'); list.replaceChildren();
+  try {
+    LMSDocuments.schoolURL(tabURL);
+    const results = await chrome.scripting.executeScript({target:{tabId,allFrames:true},files:['documents.js','document-scanner.js']});
+    const seen = new Set();
+    for (const result of results) for (const item of result.result || []) {
+      if (seen.has(item.url)) continue;
+      let validated = LMSDocuments.candidate(item.url,item.title,tabURL);
+      if (!validated) continue;
+      if (validated.ext === 'unknown') {
+        try {
+          const response = await fetch(`https://canvas.dankook.ac.kr/api/v1/files/${validated.fileId}`, {credentials:'include',signal:AbortSignal.timeout(8000)});
+          LMSDocuments.schoolURL(response.url);
+          const data = JSON.parse(new TextDecoder().decode(await LMSDocuments.readBounded(response,1024*1024)));
+          validated = LMSDocuments.candidate(item.url,data.display_name || data.filename,tabURL);
+          if (!validated || validated.ext === 'unknown') continue;
+        } catch { continue; }
+      }
+      item.title = validated.title;
+      seen.add(item.url);
+      const card = document.createElement('div'); card.className='video-card';
+      const title=document.createElement('p');title.textContent=item.title;title.className='material-name';card.appendChild(title);
+      const actions=document.createElement('div');actions.className='material-actions';
+      const button=document.createElement('button');button.className='btn btn-primary';
+      button.textContent='PDF로 저장';
+      button.addEventListener('click',()=>chrome.tabs.create({url:chrome.runtime.getURL('converter.html')+'?'+new URLSearchParams({url:item.url,name:item.title})}));
+      const original=document.createElement('button');original.className='btn btn-secondary';original.textContent='원본';
+      original.addEventListener('click',()=>chrome.tabs.create({url:validated.url}));
+      actions.append(button,original);card.appendChild(actions);list.appendChild(card);
+    }
+    if(seen.size)section.classList.remove('hidden');
+    return seen.size;
+  } catch {return 0;}
+}
+
+function scanStatus(videoCount, errors, materials) {
+  if (videoCount) return '영상 탐색이 완료되었습니다.';
+  if (materials) return '강의자료를 찾았습니다. PDF로 저장을 눌러주세요.';
+  return errors[0] || '다운로드 가능한 원본을 찾지 못했습니다.';
 }

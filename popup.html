@@ -24,6 +24,11 @@
     </header>
 
     <main id="main-content">
+      <section id="document-section" class="hidden" aria-label="강의자료">
+        <h2 class="materials-heading">강의자료 · PDF 변환</h2>
+        <div id="document-list" class="video-list"></div>
+      </section>
+      <p class="material-tip">PPT / PPTX 자료를 브라우저에서 PDF로 변환합니다. <button id="local-pdf-btn" class="btn btn-secondary">내 PPT / PPTX 파일 선택</button></p>
       <div id="loading-state" class="state-container">
         <div class="spinner"></div>
         <p>강의 영상을 탐색하고 있습니다...</p>
@@ -43,7 +48,7 @@
     </main>
 
     <footer class="app-footer">
-      <span id="version-tag">v1.2.0</span>
+      <span id="version-tag">v1.3.0</span>
       <div class="footer-links">
         <a href="https://github.com/gopuda11/LMSDownloader" target="_blank" rel="noreferrer">GitHub</a>
         <span>·</span>
@@ -55,6 +60,7 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="recovery.js"></script>
+  <script src="documents.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

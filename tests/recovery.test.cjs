@@ -67,3 +67,21 @@ test('frame scanner re-reads only the observed current LearningX item GET endpoi
 test('open lessons continue using the existing player instead of recovery labeling', () => {
   assert.equal(R.learningItemCandidate({item_id:12345, item_content_data:{content_id:'testcontent001',thumbnail_url:thumbnail},lecture_period_status:'opened'},12345),null);
 });
+test('working video avoids the unauthorized auxiliary LearningX request',async()=>{
+ const element={addEventListener(){}};let requests=0;
+ const video={currentSrc:'https://clms.dankook.ac.kr/example.mp4',querySelectorAll:()=>[],duration:60};
+ const ctx={console,URL,AbortSignal,LMSRecovery:R,
+  document:{title:'강의',getElementById:()=>element,addEventListener(){},querySelectorAll:s=>s==='video'?[video]:[]},
+  window:{location:{href:'https://canvas.dankook.ac.kr/learningx/lti/lecture_attendance/items/view/12345'}},
+  performance:{getEntriesByType:()=>[{name:'https://canvas.dankook.ac.kr/learningx/api/v1/items/12345',initiatorType:'fetch'}]},
+  fetch:async()=>{requests++;return {ok:false,status:401};}};
+ vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'..','popup.js'),'utf8'),ctx);
+ const result=await ctx.scanCurrentFrameInPage();assert.equal(requests,0);assert.equal(result.items.length,1);assert.equal(result.items[0].type,'direct');
+});
+test('successful detection has success status even if another frame returns 401; failure preserves error',()=>{
+ const element={addEventListener(){}};const ctx={document:{getElementById:()=>element,addEventListener(){}},console};
+ vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'..','popup.js'),'utf8'),ctx);
+ assert.equal(typeof ctx.scanStatus,'function');
+ assert.equal(ctx.scanStatus(1,['HTTP 401'],0),'영상 탐색이 완료되었습니다.');
+ assert.equal(ctx.scanStatus(0,['HTTP 401'],0),'HTTP 401');
+});

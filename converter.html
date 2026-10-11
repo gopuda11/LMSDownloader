@@ -1,0 +1,10 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>강의자료 PDF 변환</title><link rel="stylesheet" href="converter.css"></head><body><main>
+<header><img src="icon-48.png" alt=""><div><h1>강의자료 PDF 변환</h1><p>파일은 이 브라우저 안에서 처리됩니다. 외부로 업로드하지 않습니다.</p></div></header>
+<p class="notice">PPT / PPTX 지원 · 최대 50 MB / 200장 · 이미지 PDF(글자 검색·복사 불가)<br>글꼴·수식·차트는 원본과 다를 수 있습니다. 중요한 자료는 변환 결과를 확인해주세요.</p>
+<label class="picker">내 PC의 PPT / PPTX 선택 <input id="file" type="file" accept=".pptx,.ppt"></label>
+<p id="filename"></p><p id="status" role="status" aria-live="polite">PPT / PPTX 파일을 선택하거나 LMS에서 ‘PDF로 저장’을 누르세요.</p>
+<progress id="progress" value="0" max="1"></progress>
+<div class="actions"><button id="cancel" disabled>취소</button><button id="save" disabled>PDF 다시 저장</button><button id="original" hidden>원본 파일 열기</button></div>
+<img id="preview" hidden alt="첫 슬라이드 미리보기"><p id="result" role="status"></p>
+<div id="sandbox-host" aria-hidden="true"></div>
+</main><script src="documents.js"></script><script src="converter.js"></script></body></html>

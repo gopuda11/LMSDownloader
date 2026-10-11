@@ -104,3 +104,6 @@ dist
 .tern-port
 
 dist/
+
+# Chromium generated extension metadata
+_metadata/
