@@ -1,6 +1,6 @@
 # 단국대학교 LMS Video Downloader
 
-단국대학교 이러닝(LearningX / Canvas LMS / Uniplayer) 강의 동영상을 감지하고 다운로드하는 **Chrome 및 Chromium 계열 확장 프로그램**입니다.
+단국대학교 이러닝(LearningX / Canvas LMS) 강의 동영상을 감지하고 다운로드하는 **Chrome 및 Chromium 계열 확장 프로그램**입니다.
 
 [zinirun/LMSDownloader](https://github.com/zinirun/LMSDownloader)를 기반으로 수정한 비공식 도구입니다. 다른 대학은 시험하지 않았으며 지원 대상으로 안내하지 않습니다.
 
