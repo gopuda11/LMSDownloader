@@ -58,7 +58,7 @@ body {
   width: 30px;
   height: 30px;
   border-radius: 6px;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .app-title {
