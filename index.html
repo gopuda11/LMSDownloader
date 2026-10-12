@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>단국대 이러닝 강의 다운로드 크롬 확장 프로그램 · LMS Video Downloader</title>
+<meta name="description" content="단국대학교 이러닝(LearningX·Canvas LMS) 강의 영상을 다운로드하는 크롬 확장 프로그램. 크롬 웹스토어에서 내려간 기존 DKU Video Downloader를 최신 Chromium(Manifest V3)에 맞게 고치고 기능을 더해 다시 배포했습니다. Chrome·Edge·Whale·Brave 지원, 무료.">
+<link rel="canonical" href="https://gopuda11.github.io/LMSDownloader/">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="icon" href="icon-128.png" type="image/png">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="단국대 이러닝 강의 다운로더 (LMS Video Downloader)">
+<meta property="og:description" content="단국대 이러닝 강의 영상을 다운로드하는 크롬 확장 프로그램. 최신 크롬·웨일·엣지에서 동작하도록 다시 배포했습니다.">
+<meta property="og:url" content="https://gopuda11.github.io/LMSDownloader/">
+<meta property="og:image" content="https://gopuda11.github.io/LMSDownloader/img/usage.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "LMS Video Downloader (단국대 이러닝 강의 다운로더)",
+      "alternateName": ["DKU Video Downloader", "단국대 이러닝 다운로더", "LMSDownloader"],
+      "applicationCategory": "BrowserApplication",
+      "operatingSystem": "Chrome, Microsoft Edge, Naver Whale, Brave",
+      "description": "단국대학교 이러닝(LearningX·Canvas LMS) 강의 영상을 감지해 다운로드하는 크롬 확장 프로그램입니다.",
+      "url": "https://gopuda11.github.io/LMSDownloader/",
+      "downloadUrl": "https://github.com/gopuda11/LMSDownloader/releases/latest",
+      "license": "https://opensource.org/licenses/MIT",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "크롬 웹스토어에서 DKU Video Downloader를 찾을 수 없어요.",
+          "acceptedAnswer": { "@type": "Answer", "text": "기존 DKU Video Downloader는 크롬 웹스토어에서 내려갔고, 예전 확장 방식(Manifest V2)이라 최신 크롬에서는 동작하지 않습니다. 이 페이지의 버전은 그 소스를 바탕으로 최신 Chromium(Manifest V3)에 맞게 수정한 것입니다." }
+        },
+        {
+          "@type": "Question",
+          "name": "웨일이나 엣지에서도 쓸 수 있나요?",
+          "acceptedAnswer": { "@type": "Answer", "text": "네. Chrome 116 이상과 같은 기능을 지원하는 Edge, Whale, Brave 등 Chromium 계열 브라우저에서 사용할 수 있습니다." }
+        },
+        {
+          "@type": "Question",
+          "name": "로그인 정보가 밖으로 나가지 않나요?",
+          "acceptedAnswer": { "@type": "Answer", "text": "비밀번호, 쿠키, 인증 헤더를 수집하거나 저장하지 않고 개발자 서버로 아무것도 보내지 않습니다. 접근 권한은 단국대 서버와 확인된 영상 서버로 제한되어 있으며 소스는 GitHub에 공개되어 있습니다." }
+        },
+        {
+          "@type": "Question",
+          "name": "무료인가요?",
+          "acceptedAnswer": { "@type": "Answer", "text": "네. MIT 라이선스로 공개된 무료 오픈소스입니다." }
+        }
+      ]
+    }
+  ]
+}
+</script>
+<style>
+:root{
+  --bg:#f7f8fb;--surface:#fff;--text:#14161c;--muted:#5b6170;--line:#e3e6ee;
+  --accent:#2563eb;--accent-text:#fff;--soft:#eef3ff;--warn:#8a5a00;--warn-bg:#fff6e0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115;--surface:#171a21;--text:#e8eaf0;--muted:#a0a6b4;--line:#2a2f3a;
+    --accent:#5b8cff;--accent-text:#0b0d12;--soft:#1b2335;--warn:#f2c066;--warn-bg:#2a2414;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115;--surface:#171a21;--text:#e8eaf0;--muted:#a0a6b4;--line:#2a2f3a;
+  --accent:#5b8cff;--accent-text:#0b0d12;--soft:#1b2335;--warn:#f2c066;--warn-bg:#2a2414;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
+  word-break:keep-all;overflow-wrap:anywhere}
+main{max-width:760px;margin:0 auto;padding:40px 16px 64px}
+a{color:var(--accent)}
+header.hero{display:flex;gap:20px;align-items:center;margin-bottom:12px}
+header.hero img{width:72px;height:72px;flex:none}
+h1{font-size:1.7rem;line-height:1.3;margin:0}
+.sub{color:var(--muted);margin:4px 0 0}
+.lead{font-size:1.06rem;margin:20px 0}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 8px}
+.btn{display:inline-block;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600;border:1px solid var(--line);color:var(--text);background:var(--surface)}
+.btn.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.note{color:var(--muted);font-size:.9rem}
+section{margin-top:44px}
+h2{font-size:1.25rem;margin:0 0 12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.why{background:var(--soft);border-color:transparent}
+ul,ol{padding-left:1.3em;margin:8px 0}
+li{margin:4px 0}
+figure{margin:16px 0 0}
+figure img{width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}
+figcaption{color:var(--muted);font-size:.88rem;margin-top:6px}
+code{background:var(--soft);padding:1px 6px;border-radius:6px;font-size:.92em}
+.tag{display:inline-block;font-size:.78rem;font-weight:600;color:var(--warn);background:var(--warn-bg);padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:1px}
+details{border-top:1px solid var(--line);padding:12px 0}
+details:last-child{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;font-weight:600}
+details p{margin:8px 0 0;color:var(--muted)}
+footer{margin-top:56px;color:var(--muted);font-size:.88rem}
+@media (max-width:520px){header.hero img{width:56px;height:56px}h1{font-size:1.4rem}}
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <img src="logo.svg" alt="LMS Video Downloader 로고" width="72" height="72">
+    <div>
+      <h1>단국대 이러닝 강의 다운로더</h1>
+      <p class="sub">LMS Video Downloader · 크롬 확장 프로그램</p>
+    </div>
+  </header>
+
+  <p class="lead">단국대학교 이러닝(LearningX / Canvas LMS) 강의 영상을 감지해 바로 다운로드하는 <strong>크롬 확장 프로그램</strong>입니다. Chrome, Edge, Whale, Brave 등 Chromium 계열 브라우저에서 사용할 수 있고 무료입니다.</p>
+
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/gopuda11/LMSDownloader/releases/latest">최신 버전 다운로드 (ZIP)</a>
+    <a class="btn" href="https://github.com/gopuda11/LMSDownloader">GitHub 소스 보기</a>
+  </div>
+  <p class="note">크롬 웹스토어가 아닌 GitHub에서 배포합니다. 설치 방법은 아래에 있습니다.</p>
+
+  <section>
+    <div class="card why">
+      <h2>기존 DKU Video Downloader를 찾고 계셨나요?</h2>
+      <p>예전에 쓰이던 <strong>DKU Video Downloader</strong>는 크롬 웹스토어에서 더 이상 제공되지 않습니다. 구형 확장 방식(Manifest V2)으로 만들어져서 최신 크롬에서는 설치하거나 실행할 수 없습니다.</p>
+      <p>이 프로그램은 그 소스(<a href="https://github.com/zinirun/LMSDownloader">zinirun/LMSDownloader</a>, MIT)를 바탕으로 <strong>최신 Chromium(Manifest V3)에 맞게 일부 수정하고 기능을 더해</strong> 다시 배포한 버전입니다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>주요 기능</h2>
+    <ul>
+      <li>강의 화면에서 재생 중인 영상을 자동으로 감지해 MP4로 다운로드</li>
+      <li>저장 파일명 수정, 새 탭에서 재생, 영상 주소 복사</li>
+      <li>PPT / PPTX 강의자료를 브라우저 안에서 PDF로 변환 <span class="tag">실제 강의자료로는 아직 미확인</span></li>
+      <li>사이트 접근 권한을 단국대 서버와 확인된 영상 서버로 제한</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>설치 방법</h2>
+    <p>Chrome 116 이상 또는 같은 기능을 지원하는 Edge·Whale·Brave에서 사용합니다.</p>
+    <ol>
+      <li><a href="https://github.com/gopuda11/LMSDownloader/releases/latest">최신 릴리스</a>에서 <code>LMSDownloader-v버전.zip</code>을 내려받아 폴더에 압축을 풉니다.</li>
+      <li>확장 프로그램 관리 화면을 엽니다. Chrome은 <code>chrome://extensions/</code>, Edge는 <code>edge://extensions/</code>, Whale은 <code>whale://extensions/</code>입니다.</li>
+      <li><strong>개발자 모드</strong>를 켜고 <strong>압축해제된 확장 프로그램 로드</strong>를 누릅니다.</li>
+      <li><code>manifest.json</code>이 들어 있는 폴더를 선택합니다.</li>
+      <li>툴바에 고정해 두면 강의 화면에서 바로 열 수 있습니다.</li>
+    </ol>
+    <p class="note">업데이트할 때는 새 파일로 덮어쓴 뒤 확장 프로그램 관리 화면에서 <strong>새로고침</strong>을 누르면 됩니다.</p>
+  </section>
+
+  <section>
+    <h2>사용 방법</h2>
+    <ol>
+      <li>단국대 이러닝에 로그인하고 <strong>개별 영상 강의 화면</strong>을 엽니다.</li>
+      <li>영상 재생 버튼을 누릅니다. 인트로가 있으면 본 영상이 나올 때까지 기다립니다.</li>
+      <li>툴바의 <strong>LMS Downloader</strong>를 엽니다. 감지가 안 되면 <strong>다시 스캔</strong>을 누릅니다.</li>
+      <li>파일명을 확인하고 <strong>다운로드</strong>를 누르면 기본 다운로드 폴더에 저장됩니다.</li>
+    </ol>
+    <figure>
+      <img src="img/usage.png" alt="단국대 이러닝 강의 화면에서 확장 프로그램이 영상을 감지해 다운로드 버튼을 보여주는 모습" width="1586" height="992" loading="lazy">
+      <figcaption>강의 화면에서 영상을 감지한 모습 (개인정보는 가렸습니다)</figcaption>
+    </figure>
+    <p>PDF 변환 사용법과 자세한 설명은 <a href="https://github.com/gopuda11/LMSDownloader#readme">GitHub README</a>에 있습니다.</p>
+  </section>
+
+  <section>
+    <h2>자주 묻는 질문</h2>
+    <details>
+      <summary>크롬 웹스토어에서 DKU Video Downloader를 찾을 수 없어요.</summary>
+      <p>기존 확장은 웹스토어에서 내려갔고 구형 방식이라 최신 크롬에서 동작하지 않습니다. 이 페이지의 버전은 최신 Chromium에 맞게 수정한 것이라 GitHub에서 내려받아 설치합니다.</p>
+    </details>
+    <details>
+      <summary>웨일이나 엣지에서도 쓸 수 있나요?</summary>
+      <p>네. Chromium 계열 브라우저라면 같은 방법으로 설치할 수 있습니다.</p>
+    </details>
+    <details>
+      <summary>로그인 정보가 밖으로 나가지 않나요?</summary>
+      <p>비밀번호, 쿠키, 인증 헤더를 수집하거나 저장하지 않고 개발자 서버로 아무것도 보내지 않습니다. 소스는 모두 GitHub에 공개되어 있습니다.</p>
+    </details>
+    <details>
+      <summary>안 되거나 오류가 나요.</summary>
+      <p><a href="https://github.com/gopuda11/LMSDownloader/issues">GitHub Issues</a>에 브라우저 종류와 상황을 남겨주세요.</p>
+    </details>
+  </section>
+
+  <footer>
+    <p>학교와 무관한 비공식 도구입니다. 본인이 이용 권한을 가진 강의를 개인 학습 용도로만 사용하고, 학교 이용 규정과 교수자 안내를 따라주세요. MIT 라이선스는 강의 영상의 이용·공유 권한을 주지 않습니다.</p>
+    <p>원작: <a href="https://github.com/zinirun/LMSDownloader">zinirun/LMSDownloader</a> · <a href="https://github.com/gopuda11/LMSDownloader/blob/main/LICENSE">LICENSE</a></p>
+  </footer>
+</main>
+</body>
+</html>
