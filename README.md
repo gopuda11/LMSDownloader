@@ -4,6 +4,8 @@
 
 [zinirun/LMSDownloader](https://github.com/zinirun/LMSDownloader)를 기반으로 수정한 비공식 도구입니다. 
 
+**소개 페이지:** https://gopuda11.github.io/LMSDownloader/
+
 ## v1.3.1
 
 - PPT/PPTX → PDF 변환 기능 포함 (실제 학교 강의자료 미확인)
