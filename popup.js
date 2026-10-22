@@ -102,8 +102,7 @@ async function refreshScan(isManual = false) {
     }
   } finally {
     scanRunning = false;
-    rescanBtn.disabled = false;
-    emptyRescanBtn.disabled = false;
+    rescanBtn.disabled = emptyRescanBtn.disabled = isIlos && ilosBatchRunning;
     if (!isIlos) recoveryStatus.textContent = scanStatus(detectedVideos.size, recoveryErrors, materialCount);
   }
 }

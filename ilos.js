@@ -95,20 +95,34 @@
     }).toString();
     const html = await request(course + 'online_view_form.acl', body);
     const a = parseLoadArgs(html);
+    const redact = value => [form._KJKEY, form.kj_lect_type, a[5], a[6]].reduce((text, secret) => secret ? text.split(secret).join('') : text, String(value));
     const data = await request(course + 'online_view_navi.acl', buildNaviBody(a), true);
     if (!data || data.isError) {
-      let message = String(data?.message || '강의 인증 정보를 확인하지 못했습니다.');
-      for (const secret of [form._KJKEY, a[5], a[6]]) if (secret) message = message.split(secret).join('');
+      const message = redact(data?.message || '강의 인증 정보를 확인하지 못했습니다.');
       throw new Error(`${message} ${authHelp}`);
     }
     if (data.kind !== 'B') throw new Error('다운로드할 영상 강의가 아닙니다.');
     const viewer = await request(buildViewUrl(data, lecture.seq));
     const urls = extractMp4Urls(viewer);
     if (!urls.length) throw new Error('한경대 스트리밍 서버의 MP4 영상 주소를 찾지 못했습니다.');
-    return { title: extractTitle(html) || `${lecture.week}주차 강의 ${lecture.seq}`, url: urls[0] };
+    return { title: redact(extractTitle(html)).trim() || `${lecture.week}주차 강의 ${lecture.seq}`, url: urls[0] };
   }
 
-  const api = { parseLectures, parseLoadArgs, extractTitle, buildNaviBody, buildViewUrl, extractMp4Urls, resolveLecture };
+  // Self-contained executeScript entry point: form/session values never leave this frame.
+  async function resolveLectureInPage(lecture) {
+    if (location.origin !== 'https://cyber.hknu.ac.kr' || location.pathname !== '/ilos/st/course/online_list_form.acl') {
+      return { error: '주차별 강의 목록에서 다시 시도해주세요.' };
+    }
+    if (typeof LMSIlos === 'undefined') return { error: 'LMSIlos missing' };
+    const form = document.forms.namedItem('myform');
+    const key = form?.elements.namedItem('_KJKEY')?.value;
+    const type = form?.elements.namedItem('kj_lect_type')?.value;
+    if (!key || !type) return { error: '강의 양식이 없습니다. 로그인 후 주차별 강의 목록을 다시 열어주세요.' };
+    try { return await LMSIlos.resolveLecture(lecture, { _KJKEY: key, kj_lect_type: type }); }
+    catch (error) { return { error: error.message }; }
+  }
+
+  const api = { parseLectures, parseLoadArgs, extractTitle, buildNaviBody, buildViewUrl, extractMp4Urls, resolveLecture, resolveLectureInPage };
   root.LMSIlos = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

@@ -42,7 +42,7 @@ test('XHR responses are captured and unrelated responses are ignored',async()=>{
 function worker(store){
  let listener, updated, removed;
  const storage={get:async key=>({[key]:store[key]}),set:async values=>Object.assign(store,values),remove:async key=>{delete store[key];}};
- const context={console,URL,Map,Date,fetch,AbortSignal,LMSRecovery:require('../recovery.js'),chrome:{
+ const context={console,URL,Map,Date,fetch,AbortSignal,LMSIlos:require('../ilos.js'),LMSRecovery:require('../recovery.js'),chrome:{
   storage:{session:storage},webRequest:{onBeforeRequest:{addListener(){}}},
   tabs:{onUpdated:{addListener(fn){updated=fn;}},onRemoved:{addListener(fn){removed=fn;}}},
   runtime:{onMessage:{addListener(fn){listener=fn;}}},

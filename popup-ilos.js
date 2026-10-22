@@ -1,11 +1,20 @@
 // HKNU popup flow. Only lecture descriptors, titles and public MP4 URLs cross frames.
+let ilosBatchRunning = false;
+let ilosProgressRenderer = null;
+const ilosProgressStore = chrome.storage?.session || chrome.storage?.local;
+chrome.storage?.onChanged.addListener((changes, area) => {
+  if (area === (chrome.storage.session ? 'session' : 'local')) ilosProgressRenderer?.(changes);
+});
+
 async function scanIlosTab(tab) {
+  ilosProgressRenderer = null;
+  ilosBatchRunning = false;
   const results = await scanIlosFrames(tab.id);
   const top = results.find(result => result.frameId === 0)?.result;
   const lectures = LMSIlos.parseLectures(top?.onclicks || []);
   if (lectures.length) {
-    renderIlosLectures(tab.id, lectures);
-    recoveryStatus.textContent = `${lectures.length}개의 강의를 찾았습니다. 다운로드 중에는 팝업을 열어두세요.`;
+    recoveryStatus.textContent = `${lectures.length}개의 강의를 찾았습니다. 팝업을 닫아도 다운로드 요청은 계속됩니다.`;
+    await renderIlosLectures(tab.id, lectures);
     return;
   }
   for (const frame of results) for (const url of LMSIlos.extractMp4Urls((frame.result?.sources || []).join(' '))) {
@@ -47,18 +56,6 @@ function scanIlosFrameInPage() {
   return { title, sources: sources.filter(Boolean) };
 }
 
-async function resolveIlosLectureInPage(lecture) {
-  if (location.origin !== 'https://cyber.hknu.ac.kr' || location.pathname !== '/ilos/st/course/online_list_form.acl') {
-    return { error: '주차별 강의 목록에서 다시 시도해주세요.' };
-  }
-  const form = document.forms.namedItem('myform');
-  const key = form?.elements.namedItem('_KJKEY')?.value;
-  const type = form?.elements.namedItem('kj_lect_type')?.value;
-  if (!key || !type) return { error: '강의 양식이 없습니다. 로그인 후 주차별 강의 목록을 다시 열어주세요.' };
-  try { return await LMSIlos.resolveLecture(lecture, { _KJKEY: key, kj_lect_type: type }); }
-  catch (error) { return { error: error.message }; }
-}
-
 async function downloadIlosVideo(url, filename) {
   const validated = LMSIlos.extractMp4Urls(url);
   if (validated.length !== 1 || validated[0] !== url) throw new Error('한경대 MP4 영상 주소가 올바르지 않습니다.');
@@ -66,7 +63,7 @@ async function downloadIlosVideo(url, filename) {
   return chrome.downloads.download({ url, filename: name, conflictAction: 'uniquify', saveAs: false });
 }
 
-function renderIlosLectures(tabId, lectures) {
+async function renderIlosLectures(tabId, lectures) {
   videoList.replaceChildren();
   const all = document.createElement('button');
   all.className = 'btn btn-primary';
@@ -88,44 +85,46 @@ function renderIlosLectures(tabId, lectures) {
     return { lecture, title, button, status };
   });
 
+  function renderProgress(state) {
+    ilosBatchRunning = !!state?.running;
+    rescanBtn.disabled = emptyRescanBtn.disabled = all.disabled = ilosBatchRunning;
+    rows.forEach(row => {
+      row.button.disabled = ilosBatchRunning;
+      const saved = state?.rows[row.lecture.seq];
+      row.status.textContent = saved?.status || '';
+      if (saved?.title) row.title.textContent = saved.title;
+    });
+    if (state) recoveryStatus.textContent = state.running
+      ? `${Math.min(state.done + 1, state.total)}/${state.total} 강의 조회 및 다운로드 요청 중... 팝업을 닫아도 계속됩니다.`
+      : `다운로드 요청 완료: 성공 ${state.success}개, 실패 ${state.failed}개. 실패한 강의는 개별 안내를 확인해주세요.`;
+  }
+
   async function run(selected) {
-    if (scanRunning) return;
-    scanRunning = true;
-    rescanBtn.disabled = emptyRescanBtn.disabled = all.disabled = true;
-    rows.forEach(row => { row.button.disabled = true; });
-    let success = 0, failed = 0;
+    if (ilosBatchRunning) return;
+    renderProgress({ running: true, done: 0, total: selected.length, rows: {} });
     try {
-      // Inject per run: the page may have reloaded since the scan.
-      await chrome.scripting.executeScript({ target: { tabId }, files: ['ilos.js'] });
-      for (const [index, row] of selected.entries()) {
-        recoveryStatus.textContent = `${index + 1}/${selected.length} 강의 조회 및 다운로드 요청 중... 팝업을 열어두세요.`;
-        row.status.textContent = '영상 주소 조회 중...';
-        try {
-          const results = await chrome.scripting.executeScript({
-            target: { tabId }, func: resolveIlosLectureInPage, args: [row.lecture]
-          });
-          const result = results[0]?.result;
-          if (!result || result.error) throw new Error(result?.error || '강의 조회 응답이 없습니다.');
-          row.title.textContent = result.title;
-          await downloadIlosVideo(result.url, `${result.title}.mp4`);
-          row.status.textContent = '✓ 브라우저 다운로드가 시작되었습니다.';
-          success++;
-        } catch (error) {
-          row.status.textContent = `다운로드 실패: ${error.message}`;
-          failed++;
-        }
-        if (index < selected.length - 1) await new Promise(resolve => setTimeout(resolve, 300));
-      }
-      recoveryStatus.textContent = `다운로드 요청 완료: 성공 ${success}개, 실패 ${failed}개. 실패한 강의는 개별 안내를 확인해주세요.`;
-    } catch {
-      recoveryStatus.textContent = '강의 페이지에 연결하지 못했습니다. 주차별 강의 목록에서 다시 시도해주세요.';
-    } finally {
-      scanRunning = false;
-      rescanBtn.disabled = emptyRescanBtn.disabled = all.disabled = false;
-      rows.forEach(row => { row.button.disabled = false; });
+      const response = await chrome.runtime.sendMessage({ action: 'ilosBatch', tabId, lectures: selected.map(row => row.lecture) });
+      if (!response?.ok) throw new Error(response?.error || '다운로드 요청을 시작하지 못했습니다.');
+    } catch (error) {
+      const saved = ilosProgressStore && (await ilosProgressStore.get(key))[key];
+      renderProgress(saved);
+      recoveryStatus.textContent = error.message;
     }
   }
   all.addEventListener('click', () => run(rows));
   rows.forEach(row => row.button.addEventListener('click', () => run([row])));
   showList();
+  const key = `ilos-batch-tab-${tabId}`;
+  // Subscribe before reading so changes during get() cannot be overwritten by an older snapshot.
+  let changed = false;
+  const update = changes => {
+    if (!Object.prototype.hasOwnProperty.call(changes, key)) return;
+    changed = true;
+    renderProgress(changes[key].newValue);
+  };
+  ilosProgressRenderer = update;
+  if (ilosProgressStore) {
+    const saved = await ilosProgressStore.get(key);
+    if (!changed && ilosProgressRenderer === update) renderProgress(saved[key]);
+  }
 }

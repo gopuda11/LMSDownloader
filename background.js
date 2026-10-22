@@ -1,6 +1,7 @@
 // background.js - Manifest V3 Service Worker
 
 if (typeof LMSRecovery === 'undefined') importScripts('recovery.js');
+if (typeof LMSIlos === 'undefined') importScripts('ilos.js');
 
 const tabMediaMap = new Map();
 let dnrRuleCounter = 10000;
@@ -75,8 +76,101 @@ chrome.webRequest.onBeforeRequest.addListener(
   { urls: allowedRequestUrls }
 );
 
+const ilosBatchKey = tabId => `ilos-batch-tab-${tabId}`;
+const ilosBatches = new Map();
+function isIlosListUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.origin === 'https://cyber.hknu.ac.kr' && url.pathname === '/ilos/st/course/online_list_form.acl';
+  } catch { return false; }
+}
+
+function clearIlosBatch(tabId) {
+  ilosBatches.delete(tabId);
+  if (recoveryStore) queueStorage(tabId, () => recoveryStore.remove(ilosBatchKey(tabId))).catch(() => {});
+}
+
+async function startIlosBatch(tabId, lectures) {
+  if (!Number.isInteger(tabId) || tabId < 0 || !Array.isArray(lectures) || !lectures.length || !recoveryStore) {
+    throw new Error('주차별 강의 목록에서 다시 시도해주세요.');
+  }
+  if (ilosBatches.has(tabId)) throw new Error('이 탭에서 다운로드 요청이 진행 중입니다.');
+  const batch = {};
+  ilosBatches.set(tabId, batch); // Reserve before the first await, including storage/tab checks.
+  try {
+    const key = ilosBatchKey(tabId);
+    const saved = await recoveryStore.get(key);
+    if (saved[key]?.running) throw new Error('이 탭에서 다운로드 요청이 진행 중입니다.');
+    const tab = await chrome.tabs.get(tabId);
+    if (!isIlosListUrl(tab.url) || ilosBatches.get(tabId) !== batch) throw new Error('주차별 강의 목록에서 다시 시도해주세요.');
+    const selected = lectures.map(({ week, seq, itemId }) => ({ week: String(week), seq: String(seq), itemId: String(itemId || '') }));
+    if (selected.some(item => !/^\d+$/.test(item.week) || !/^\d+$/.test(item.seq))) throw new Error('강의 목록이 올바르지 않습니다.');
+    const state = { running: true, total: selected.length, done: 0, success: 0, failed: 0, rows: {} };
+    for (const lecture of selected) state.rows[lecture.seq] = { status: '대기 중', title: `${lecture.week}주차 강의 ${lecture.seq}` };
+    await queueStorage(tabId, () => ilosBatches.get(tabId) === batch && recoveryStore.set({ [key]: state }));
+    // The popup receives acceptance now; the service worker owns the remaining work.
+    runIlosBatch(tabId, selected, batch, state).catch(() => {}).finally(() => {
+      if (ilosBatches.get(tabId) === batch) ilosBatches.delete(tabId);
+    });
+  } catch (error) {
+    if (ilosBatches.get(tabId) === batch) ilosBatches.delete(tabId);
+    throw error;
+  }
+}
+
+async function runIlosBatch(tabId, lectures, batch, state) {
+  const active = () => ilosBatches.get(tabId) === batch;
+  const save = () => queueStorage(tabId, () => active() && recoveryStore.set({ [ilosBatchKey(tabId)]: state }));
+  let injected = false;
+  try {
+    for (const [index, lecture] of lectures.entries()) {
+      if (!active()) return;
+      const row = state.rows[lecture.seq];
+      row.status = '영상 주소 조회 중...';
+      await save();
+      if (!active()) return;
+      try {
+        if (!injected) {
+          await chrome.scripting.executeScript({ target: { tabId }, files: ['ilos.js'] });
+          injected = true;
+        }
+        const resolve = async () => (await chrome.scripting.executeScript({
+          target: { tabId }, func: LMSIlos.resolveLectureInPage, args: [lecture]
+        }))[0]?.result;
+        if (!active()) return;
+        let result = await resolve();
+        if (active() && result?.error === 'LMSIlos missing') {
+          await chrome.scripting.executeScript({ target: { tabId }, files: ['ilos.js'] });
+          result = await resolve();
+        }
+        if (!active()) return;
+        if (!result || result.error) throw Object.assign(new Error(result?.error || '강의 조회 응답이 없습니다.'), { shown: true });
+        const urls = LMSIlos.extractMp4Urls(result.url);
+        if (urls.length !== 1 || urls[0] !== result.url) throw Object.assign(new Error('한경대 MP4 영상 주소가 올바르지 않습니다.'), { shown: true });
+        row.title = String(result.title || `${lecture.week}주차 강의 ${lecture.seq}`);
+        await chrome.downloads.download({ url: result.url, filename: downloadFilename(`${row.title}.mp4`), conflictAction: 'uniquify', saveAs: false });
+        row.status = '✓ 브라우저 다운로드가 시작되었습니다.';
+        state.success++;
+      } catch (error) {
+        // Only redacted page errors and our own messages are shown; Chrome API errors get fixed guidance.
+        row.status = `다운로드 실패: ${error.shown && error.message !== 'LMSIlos missing' ? error.message : '로그인 상태를 확인하고 학습하기로 2차 인증을 마친 뒤 다시 시도해주세요.'}`;
+        state.failed++;
+      }
+      if (!active()) return;
+      state.done++;
+      await save();
+      if (index < lectures.length - 1) await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  } finally {
+    state.running = false;
+    await save();
+  }
+}
+
 // Clear cache on tab navigation
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if ((changeInfo.url && !isIlosListUrl(changeInfo.url)) ||
+      (changeInfo.status === 'loading' && !isIlosListUrl(changeInfo.url || tab?.url))) clearIlosBatch(tabId);
   if (changeInfo.status === 'loading' || changeInfo.url) {
     tabMediaMap.delete(tabId);
     if (recoveryStore) queueStorage(tabId, () => recoveryStore.remove(recoveryKey(tabId))).catch(() => {});
@@ -85,12 +179,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
 // Clean up on tab close
 chrome.tabs.onRemoved.addListener((tabId) => {
+  clearIlosBatch(tabId);
   tabMediaMap.delete(tabId);
   if (recoveryStore) queueStorage(tabId, () => recoveryStore.remove(recoveryKey(tabId))).catch(() => {});
 });
 
 // Handle incoming messages from popup or content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'ilosBatch') {
+    startIlosBatch(request.tabId, request.lectures)
+      .then(() => sendResponse({ ok: true }))
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
+  }
+
   if (request.action === 'captureLearningItem') {
     const match = String(sender.url || '').match(/^https:\/\/canvas\.dankook\.ac\.kr\/learningx\/lti\/lecture_attendance\/items\/view\/(\d+)(?:[/?#]|$)/);
     const tabId = sender.tab?.id;
@@ -241,10 +343,7 @@ async function handleDownload(videoUrl, filename, refererUrl) {
     } catch (error) { pendingDownloadRules.delete(ruleId); throw error; }
   });
 
-  const safeFilename = String(filename || 'lecture.mp4')
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
-    .replace(/\.+$/, '')
-    .trim() || 'lecture.mp4';
+  const safeFilename = downloadFilename(filename);
 
   try { return await new Promise((resolve, reject) => {
     chrome.downloads.download(
@@ -266,4 +365,11 @@ async function handleDownload(videoUrl, filename, refererUrl) {
     pendingDownloadRules.delete(ruleId);
     await serializeDownloadRules(removeUnusedDownloadRules).catch(error => console.warn('[background.js] Rule cleanup failed:', error));
   }
+}
+
+function downloadFilename(filename) {
+  return String(filename || 'lecture.mp4')
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+    .replace(/\.+$/, '')
+    .trim() || 'lecture.mp4';
 }
