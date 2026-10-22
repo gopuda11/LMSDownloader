@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>단국대 이러닝 강의 다운로드 크롬 확장 프로그램 · LMS Video Downloader</title>
-<meta name="description" content="단국대학교 이러닝(LearningX·Canvas LMS) 강의 영상을 다운로드하는 크롬 확장 프로그램. 크롬 웹스토어에서 내려간 기존 DKU Video Downloader를 최신 Chromium(Manifest V3)에 맞게 고치고 기능을 더해 다시 배포했습니다. Chrome·Edge·Whale·Brave 지원, 무료.">
+<title>러닝엑스/LMS 다운로더 · 단국대·한경대 이러닝 강의 다운로드 크롬 확장 프로그램</title>
+<meta name="description" content="단국대학교 이러닝(LearningX·Canvas LMS)과 한경대학교 사이버캠퍼스(ILOS) 강의 영상을 다운로드하는 크롬 확장 프로그램. 크롬 웹스토어에서 내려간 기존 DKU Video Downloader를 최신 Chromium(Manifest V3)에 맞게 고치고 기능을 더해 다시 배포했습니다. Chrome·Edge·Whale·Brave 지원, 무료.">
 <link rel="canonical" href="https://gopuda11.github.io/LMSDownloader/">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <link rel="icon" href="icon-128.png" type="image/png">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ko_KR">
-<meta property="og:title" content="단국대 이러닝 강의 다운로더 (LMS Video Downloader)">
-<meta property="og:description" content="단국대 이러닝 강의 영상을 다운로드하는 크롬 확장 프로그램. 최신 크롬·웨일·엣지에서 동작하도록 다시 배포했습니다.">
+<meta property="og:title" content="러닝엑스/LMS 다운로더 · 단국대·한경대 이러닝 강의 다운로더">
+<meta property="og:description" content="단국대·한경대 이러닝 강의 영상을 다운로드하는 크롬 확장 프로그램. 최신 크롬·웨일·엣지에서 동작하도록 다시 배포했습니다.">
 <meta property="og:url" content="https://gopuda11.github.io/LMSDownloader/">
 <meta property="og:image" content="https://gopuda11.github.io/LMSDownloader/img/usage.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,11 +21,11 @@
   "@graph": [
     {
       "@type": "SoftwareApplication",
-      "name": "LMS Video Downloader (단국대 이러닝 강의 다운로더)",
-      "alternateName": ["DKU Video Downloader", "단국대 이러닝 다운로더", "LMSDownloader"],
+      "name": "러닝엑스/LMS 다운로더 (LMS Video Downloader)",
+      "alternateName": ["DKU Video Downloader", "단국대 이러닝 다운로더", "한경대 이러닝 다운로더", "LMSDownloader"],
       "applicationCategory": "BrowserApplication",
       "operatingSystem": "Chrome, Microsoft Edge, Naver Whale, Brave",
-      "description": "단국대학교 이러닝(LearningX·Canvas LMS) 강의 영상을 감지해 다운로드하는 크롬 확장 프로그램입니다.",
+      "description": "단국대학교 이러닝(LearningX·Canvas LMS)과 한경대학교 사이버캠퍼스(ILOS) 강의 영상을 다운로드하는 크롬 확장 프로그램입니다.",
       "url": "https://gopuda11.github.io/LMSDownloader/",
       "downloadUrl": "https://github.com/gopuda11/LMSDownloader/releases/latest",
       "license": "https://opensource.org/licenses/MIT",
@@ -47,7 +47,7 @@
         {
           "@type": "Question",
           "name": "로그인 정보가 밖으로 나가지 않나요?",
-          "acceptedAnswer": { "@type": "Answer", "text": "비밀번호, 쿠키, 인증 헤더를 수집하거나 저장하지 않고 개발자 서버로 아무것도 보내지 않습니다. 접근 권한은 단국대 서버와 확인된 영상 서버로 제한되어 있으며 소스는 GitHub에 공개되어 있습니다." }
+          "acceptedAnswer": { "@type": "Answer", "text": "비밀번호, 쿠키, 인증 헤더를 수집하거나 저장하지 않고 개발자 서버로 아무것도 보내지 않습니다. 접근 권한은 단국대·한경대 서버와 확인된 영상 서버로 제한되어 있으며 소스는 GitHub에 공개되어 있습니다." }
         },
         {
           "@type": "Question",
@@ -91,6 +91,7 @@ h1{font-size:1.7rem;line-height:1.3;margin:0}
 .note{color:var(--muted);font-size:.9rem}
 section{margin-top:44px}
 h2{font-size:1.25rem;margin:0 0 12px}
+h3{font-size:1.05rem;margin:18px 0 6px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
 .why{background:var(--soft);border-color:transparent}
 ul,ol{padding-left:1.3em;margin:8px 0}
@@ -111,14 +112,14 @@ footer{margin-top:56px;color:var(--muted);font-size:.88rem}
 <body>
 <main>
   <header class="hero">
-    <img src="logo.svg" alt="LMS Video Downloader 로고" width="72" height="72">
+    <img src="logo.svg" alt="러닝엑스/LMS 다운로더 로고" width="72" height="72">
     <div>
-      <h1>단국대 이러닝 강의 다운로더</h1>
-      <p class="sub">LMS Video Downloader · 크롬 확장 프로그램</p>
+      <h1>러닝엑스/LMS 다운로더</h1>
+      <p class="sub">단국대·한경대 이러닝 강의 다운로더 · 크롬 확장 프로그램</p>
     </div>
   </header>
 
-  <p class="lead">단국대학교 이러닝(LearningX / Canvas LMS) 강의 영상을 감지해 바로 다운로드하는 <strong>크롬 확장 프로그램</strong>입니다. Chrome, Edge, Whale, Brave 등 Chromium 계열 브라우저에서 사용할 수 있고 무료입니다.</p>
+  <p class="lead">단국대학교 이러닝(LearningX / Canvas LMS)과 한경대학교 사이버캠퍼스(ILOS) 강의 영상을 바로 다운로드하는 <strong>크롬 확장 프로그램</strong>입니다. Chrome, Edge, Whale, Brave 등 Chromium 계열 브라우저에서 사용할 수 있고 무료입니다.</p>
 
   <div class="cta">
     <a class="btn primary" href="https://github.com/gopuda11/LMSDownloader/releases/latest">최신 버전 다운로드 (ZIP)</a>
@@ -138,9 +139,10 @@ footer{margin-top:56px;color:var(--muted);font-size:.88rem}
     <h2>주요 기능</h2>
     <ul>
       <li>강의 화면에서 재생 중인 영상을 자동으로 감지해 MP4로 다운로드</li>
+      <li>한경대는 주차별 강의 목록에서 이번 주 강의를 한 번에 다운로드</li>
       <li>저장 파일명 수정, 새 탭에서 재생, 영상 주소 복사</li>
       <li>PPT / PPTX 강의자료를 브라우저 안에서 PDF로 변환 <span class="tag">실제 강의자료로는 아직 미확인</span></li>
-      <li>사이트 접근 권한을 단국대 서버와 확인된 영상 서버로 제한</li>
+      <li>사이트 접근 권한을 단국대·한경대 서버와 확인된 영상 서버로 제한</li>
     </ul>
   </section>
 
@@ -159,6 +161,7 @@ footer{margin-top:56px;color:var(--muted);font-size:.88rem}
 
   <section>
     <h2>사용 방법</h2>
+    <h3>단국대 이러닝</h3>
     <ol>
       <li>단국대 이러닝에 로그인하고 <strong>개별 영상 강의 화면</strong>을 엽니다.</li>
       <li>영상 재생 버튼을 누릅니다. 인트로가 있으면 본 영상이 나올 때까지 기다립니다.</li>
@@ -169,6 +172,12 @@ footer{margin-top:56px;color:var(--muted);font-size:.88rem}
       <img src="img/usage.png" alt="단국대 이러닝 강의 화면에서 확장 프로그램이 영상을 감지해 다운로드 버튼을 보여주는 모습" width="1586" height="992" loading="lazy">
       <figcaption>강의 화면에서 영상을 감지한 모습 (개인정보는 가렸습니다)</figcaption>
     </figure>
+    <h3>한경대 사이버캠퍼스</h3>
+    <ol>
+      <li>사이버캠퍼스에 로그인하고 <strong>학습하기</strong>로 강의를 열면 그 영상을 받을 수 있습니다.</li>
+      <li><strong>주차별 강의 목록</strong>에서 확장 프로그램을 열면 강의마다 <strong>다운로드</strong> 버튼과 <strong>이번 주 전체 다운로드</strong> 버튼이 나옵니다.</li>
+      <li>전체 다운로드는 팝업을 닫아도 계속됩니다.</li>
+    </ol>
     <p>PDF 변환 사용법과 자세한 설명은 <a href="https://github.com/gopuda11/LMSDownloader#readme">GitHub README</a>에 있습니다.</p>
   </section>
 
