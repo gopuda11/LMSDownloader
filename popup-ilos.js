@@ -1,16 +1,14 @@
 // HKNU popup flow. Only lecture descriptors, titles and public MP4 URLs cross frames.
 async function scanIlosTab(tab) {
-  await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['ilos.js'] });
-  const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id, allFrames: true }, func: scanIlosFrameInPage
-  });
+  const results = await scanIlosFrames(tab.id);
   const top = results.find(result => result.frameId === 0)?.result;
-  if (top?.lectures?.length) {
-    renderIlosLectures(tab.id, top.lectures);
-    recoveryStatus.textContent = `${top.lectures.length}개의 강의를 찾았습니다. 다운로드 중에는 팝업을 열어두세요.`;
+  const lectures = LMSIlos.parseLectures(top?.onclicks || []);
+  if (lectures.length) {
+    renderIlosLectures(tab.id, lectures);
+    recoveryStatus.textContent = `${lectures.length}개의 강의를 찾았습니다. 다운로드 중에는 팝업을 열어두세요.`;
     return;
   }
-  for (const frame of results) for (const url of frame.result?.urls || []) {
+  for (const frame of results) for (const url of LMSIlos.extractMp4Urls((frame.result?.sources || []).join(' '))) {
     if (detectedVideos.has(url)) continue;
     detectedVideos.set(url, {
       key: url, title: top?.title || frame.result.title || tab.title || '강의 영상',
@@ -26,19 +24,27 @@ async function scanIlosTab(tab) {
   }
 }
 
+// One inaccessible child frame must not hide the lecture list in the main frame.
+async function scanIlosFrames(tabId) {
+  try {
+    return await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: scanIlosFrameInPage });
+  } catch {
+    return chrome.scripting.executeScript({ target: { tabId }, func: scanIlosFrameInPage });
+  }
+}
+
+// Runs in each frame without ilos.js; the popup parses and validates what it returns.
 function scanIlosFrameInPage() {
   if (location.origin !== 'https://cyber.hknu.ac.kr') return {};
   if (location.pathname === '/ilos/st/course/online_list_form.acl') {
-    return { lectures: LMSIlos.parseLectures(Array.from(document.querySelectorAll('[onclick]'), node => node.getAttribute('onclick'))) };
+    return { onclicks: Array.from(document.querySelectorAll('[onclick]'), node => node.getAttribute('onclick')) };
   }
   const title = (document.querySelector('.item-title-lesson-on') || document.querySelector('.item-title-lesson'))?.textContent.trim() || '';
-  const urls = new Set();
+  const sources = [];
   for (const video of document.querySelectorAll('video')) {
-    for (const value of [video.currentSrc, video.src, ...Array.from(video.querySelectorAll('source'), source => source.src)]) {
-      for (const url of LMSIlos.extractMp4Urls(value || '')) urls.add(url);
-    }
+    sources.push(video.currentSrc, video.src, ...Array.from(video.querySelectorAll('source'), source => source.src));
   }
-  return { title, urls: Array.from(urls) };
+  return { title, sources: sources.filter(Boolean) };
 }
 
 async function resolveIlosLectureInPage(lecture) {
@@ -89,7 +95,7 @@ function renderIlosLectures(tabId, lectures) {
     rows.forEach(row => { row.button.disabled = true; });
     let success = 0, failed = 0;
     try {
-      // Reinject in case the page was reloaded while the popup was open.
+      // Inject per run: the page may have reloaded since the scan.
       await chrome.scripting.executeScript({ target: { tabId }, files: ['ilos.js'] });
       for (const [index, row] of selected.entries()) {
         recoveryStatus.textContent = `${index + 1}/${selected.length} 강의 조회 및 다운로드 요청 중... 팝업을 열어두세요.`;

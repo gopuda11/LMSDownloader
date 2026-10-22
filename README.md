@@ -1,4 +1,4 @@
-# 단국대 · 한경대 강의 다운로더 (LMS Video Downloader)
+# 러닝엑스/LMS 다운로더 (LMS Video Downloader)
 
 단국대학교 이러닝(LearningX / Canvas LMS)과 한경대학교 사이버캠퍼스(ILOS) 강의 영상을 감지해 다운로드하는 **크롬 확장 프로그램**입니다. Chrome·Edge·Whale·Brave 등 Chromium 계열에서 사용할 수 있으며 PPT/PPTX 자료의 PDF 변환 기능도 포함합니다.
 

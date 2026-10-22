@@ -90,6 +90,22 @@ test('navi isError surfaces the server message and manual secondary-auth guidanc
   assert.equal(calls, 2);
 });
 
+test('title extraction prefers the active lesson over an earlier inactive one', () => {
+  assert.equal(I.extractTitle('<li class="item-title-lesson">9-1</li><li class="a item-title-lesson-on">9-2</li>'), '9-2');
+  assert.equal(I.extractTitle('<li class="item-title-lesson-extra">x</li>'), '');
+});
+
+test('navi error messages never echo session values to the popup', async () => {
+  let calls = 0;
+  await assert.rejects(I.resolveLecture(lecture, form, async () => ++calls === 1
+    ? { ok: true, text: async () => viewForm }
+    : { ok: true, json: async () => ({ isError: true, message: '세션 fake-key / fake-ky / fake-ud 만료' }) }), error => {
+    assert.doesNotMatch(error.message, /fake-key|fake-ky|fake-ud/);
+    assert.match(error.message, /세션.*만료/);
+    return true;
+  });
+});
+
 test('missing cv.load gives a clear error without making another request', async () => {
   let calls = 0;
   await assert.rejects(I.resolveLecture(lecture, form, async () => { calls++; return { ok: true, text: async () => '<html>로그인</html>' }; }), /강의.*정보.*학습하기/);
@@ -119,7 +135,7 @@ test('non-video and missing valid MP4 fail clearly', async () => {
 });
 
 // Small DOM/Chrome boundary doubles; both popup scripts and injected functions run unchanged.
-function popupHarness({ list = false, failSeq = '' } = {}) {
+function popupHarness({ list = false, failSeq = '', failAllFrames = false } = {}) {
   class Element {
     constructor() { this.children = []; this.listeners = {}; this.textContent = ''; this.value = ''; this.disabled = false; this.classList = { add() {}, remove() {} }; }
     addEventListener(event, fn) { this.listeners[event] = fn; }
@@ -156,6 +172,7 @@ function popupHarness({ list = false, failSeq = '' } = {}) {
     tabs: { query: async () => [{ id: 1, url: location.origin + location.pathname, title: '시험 강의' }], create() {} },
     downloads: { download: async options => { downloads.push(options); return downloads.length; } },
     scripting: { executeScript: async spec => {
+      if (failAllFrames && spec.target.allFrames) throw new Error('Cannot access contents of the page');
       const frames = spec.target.allFrames ? [page, child] : [page];
       if (spec.files) { for (const frame of frames) for (const file of spec.files) vm.runInContext(fs.readFileSync(require.resolve('../' + file), 'utf8'), frame); return []; }
       const results = [];
@@ -213,4 +230,12 @@ test('individual week button resolves and downloads only its lecture', async () 
   await buttons[2].listeners.click();
   assert.equal(h.downloads.length, 1);
   assert.equal(new URLSearchParams(h.requests[0].options.body).get('lecture_weeks'), '27');
+});
+
+test('list scan still works when an inaccessible child frame breaks allFrames injection', async () => {
+  const h = popupHarness({ list: true, failAllFrames: true });
+  await h.context.refreshScan();
+  const buttons = h.elements.get('video-list').querySelectorAll('button');
+  assert.equal(buttons.length, 4);
+  assert.equal(buttons[0].textContent, '이번 주 전체 다운로드');
 });

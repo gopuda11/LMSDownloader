@@ -29,9 +29,10 @@
   function extractTitle(html) {
     if (typeof DOMParser !== 'undefined') {
       const dom = new DOMParser().parseFromString(html, 'text/html');
-      return (dom.querySelector('.item-title-lesson-on, .item-title-lesson')?.textContent || '').trim();
+      return ((dom.querySelector('.item-title-lesson-on') || dom.querySelector('.item-title-lesson'))?.textContent || '').trim();
     }
-    const match = String(html).match(/<([a-z][\w:-]*)\b[^>]*\bclass\s*=\s*(['"])[^'"]*\bitem-title-lesson(?:-on)?\b[^'"]*\2[^>]*>([\s\S]*?)<\/\1\s*>/i);
+    const tag = cls => String(html).match(new RegExp('<([a-z][\\w:-]*)\\b[^>]*\\bclass\\s*=\\s*([\'"])[^\'"]*\\b' + cls + '(?![\\w-])[^\'"]*\\2[^>]*>([\\s\\S]*?)<\\/\\1\\s*>', 'i'));
+    const match = tag('item-title-lesson-on') || tag('item-title-lesson');
     if (!match) return '';
     const entities = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
     return match[3].replace(/<[^>]*>/g, '').replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (entity, name) => {
@@ -95,7 +96,11 @@
     const html = await request(course + 'online_view_form.acl', body);
     const a = parseLoadArgs(html);
     const data = await request(course + 'online_view_navi.acl', buildNaviBody(a), true);
-    if (!data || data.isError) throw new Error(`${data?.message || '강의 인증 정보를 확인하지 못했습니다.'} ${authHelp}`);
+    if (!data || data.isError) {
+      let message = String(data?.message || '강의 인증 정보를 확인하지 못했습니다.');
+      for (const secret of [form._KJKEY, a[5], a[6]]) if (secret) message = message.split(secret).join('');
+      throw new Error(`${message} ${authHelp}`);
+    }
     if (data.kind !== 'B') throw new Error('다운로드할 영상 강의가 아닙니다.');
     const viewer = await request(buildViewUrl(data, lecture.seq));
     const urls = extractMp4Urls(viewer);

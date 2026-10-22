@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "LMS Video Downloader",
+  "name": "러닝엑스/LMS 다운로더",
   "version": "1.4.0",
   "author": "gopuda11 (forked from zinirun)",
-  "description": "단국대학교 이러닝 · 한경대 ILOS 강의 영상 다운로드. PPT/PPTX의 브라우저 내 PDF 변환 기능 포함 (실제 강의자료 미확인).",
+  "description": "단국대 이러닝(LearningX) · 한경대 ILOS 강의 영상 다운로드. PPT/PPTX의 브라우저 내 PDF 변환 기능 포함 (실제 강의자료 미확인).",
   "action": {
     "default_icon": "icon-128.png",
     "default_popup": "popup.html",
-    "default_title": "LMS Video Downloader"
+    "default_title": "러닝엑스/LMS 다운로더"
   },
   "background": {
     "service_worker": "background.js"
