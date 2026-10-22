@@ -103,8 +103,9 @@ async function renderIlosLectures(tabId, lectures) {
     if (ilosBatchRunning) return;
     renderProgress({ running: true, done: 0, total: selected.length, rows: {} });
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'ilosBatch', tabId, lectures: selected.map(row => row.lecture) });
-      if (!response?.ok) throw new Error(response?.error || '다운로드 요청을 시작하지 못했습니다.');
+      const response = await chrome.runtime.sendMessage({ action: 'ilosBatch', tabId, lectures: selected.map(row => row.lecture) })
+        .catch(() => null);
+      if (!response?.ok) throw new Error(response?.error || '다운로드 요청을 시작하지 못했습니다. 확장 프로그램을 다시 열어주세요.');
     } catch (error) {
       const saved = ilosProgressStore && (await ilosProgressStore.get(key))[key];
       renderProgress(saved);

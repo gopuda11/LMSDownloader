@@ -135,7 +135,7 @@ test('non-video and missing valid MP4 fail clearly', async () => {
 });
 
 // Small DOM/Chrome boundary doubles; both popup scripts and injected functions run unchanged.
-function popupHarness({ list = false, failSeq = '', failAllFrames = false, hold, local = false, resolvedUrl, naviError = false } = {}) {
+function popupHarness({ list = false, failSeq = '', failAllFrames = false, hold, local = false, resolvedUrl, naviError = false, seed = {} } = {}) {
   class Element {
     constructor() { this.children = []; this.listeners = {}; this.textContent = ''; this.value = ''; this.disabled = false; this.classList = { add() {}, remove() {} }; }
     addEventListener(event, fn) { this.listeners[event] = fn; }
@@ -167,17 +167,17 @@ function popupHarness({ list = false, failSeq = '', failAllFrames = false, hold,
   });
   const child = vm.createContext({ URL, URLSearchParams, AbortSignal, location: { ...location, pathname: '/ilos/st/course/online_view.acl' },
     document: { querySelector: () => null, querySelectorAll: selector => selector === 'video' ? [{ currentSrc: media + '?ignored=1', querySelectorAll: () => [] }] : [] } });
-  const store = {}, writes = [], storageListeners = [], messages = [], timers = [];
+  const store = JSON.parse(JSON.stringify(seed)), writes = [], storageListeners = [], messages = [], timers = [];
   const clone = value => JSON.parse(JSON.stringify(value));
   const storage = {
-    get: async key => ({ [key]: store[key] && clone(store[key]) }),
+    get: async key => key === null ? clone(store) : ({ [key]: store[key] && clone(store[key]) }),
     set: async values => {
       writes.push(clone(values));
       const changes = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, { newValue: clone(value) }]));
       Object.assign(store, clone(values));
       storageListeners.forEach(fn => fn(changes, local ? 'local' : 'session'));
     },
-    remove: async key => { delete store[key]; storageListeners.forEach(fn => fn({ [key]: {} }, local ? 'local' : 'session')); }
+    remove: async keys => { for (const key of [].concat(keys)) { delete store[key]; storageListeners.forEach(fn => fn({ [key]: {} }, local ? 'local' : 'session')); } }
   };
   let listener, updated, removed;
   const chrome = {
@@ -430,4 +430,34 @@ test('injection and download API failures do not stop later lectures or expose t
   assert.deepEqual([h.store['ilos-batch-tab-1'].done, h.store['ilos-batch-tab-1'].success, h.store['ilos-batch-tab-1'].failed], [3, 1, 2]);
   assert.equal(h.downloads.length, 1);
   assert.doesNotMatch(JSON.stringify([h.returned, h.writes]), /fake-key|fake-ky|fake-ud/);
+});
+
+test('a restarted worker drops running records left by a terminated worker and accepts a new batch', async () => {
+  const stale = { running: true, total: 3, done: 1, success: 1, failed: 0, rows: {} };
+  const h = popupHarness({ list: true, seed: { 'ilos-batch-tab-1': stale, 'ilos-batch-tab-2': { ...stale, running: false } } });
+  const response = await h.chrome.runtime.sendMessage({ action: 'ilosBatch', tabId: 1, lectures: [lecture] });
+  assert.equal(response.ok, true);
+  await batchFinished(h);
+  assert.equal(h.store['ilos-batch-tab-1'].success, 1);
+  assert.equal(h.store['ilos-batch-tab-2'].running, false);
+});
+
+test('loading another week list cancels the running batch', async () => {
+  let release;
+  const h = popupHarness({ list: true, hold: new Promise(resolve => { release = resolve; }) });
+  await h.chrome.runtime.sendMessage({ action: 'ilosBatch', tabId: 1, lectures: [lecture] });
+  await new Promise(resolve => setImmediate(resolve));
+  h.updated(1, { status: 'loading', url: 'https://cyber.hknu.ac.kr/ilos/st/course/online_list_form.acl?WEEK_NO=10' });
+  release();
+  for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.store['ilos-batch-tab-1'], undefined);
+  assert.equal(h.downloads.length, 0);
+});
+
+test('unexpected startup errors are replaced with fixed guidance', async () => {
+  const h = popupHarness({ list: true });
+  h.chrome.tabs.get = async () => { throw new Error('No tab with id: 1 fake-key'); };
+  const response = await h.chrome.runtime.sendMessage({ action: 'ilosBatch', tabId: 1, lectures: [lecture] });
+  assert.doesNotMatch(response.error, /fake-key|No tab/);
+  assert.match(response.error, /새로고침/);
 });

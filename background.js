@@ -78,6 +78,13 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 const ilosBatchKey = tabId => `ilos-batch-tab-${tabId}`;
 const ilosBatches = new Map();
+// Errors marked shown are fixed or page-redacted text; anything else is replaced before display.
+const ilosError = message => Object.assign(new Error(message), { shown: true });
+// A fresh worker owns no batch, so running records left by a terminated worker are stale.
+const ilosStaleCleanup = recoveryStore ? recoveryStore.get(null).then(all => {
+  const stale = Object.keys(all).filter(key => key.startsWith('ilos-batch-tab-') && all[key]?.running);
+  return stale.length && recoveryStore.remove(stale);
+}).catch(() => {}) : Promise.resolve();
 function isIlosListUrl(value) {
   try {
     const url = new URL(value);
@@ -92,19 +99,18 @@ function clearIlosBatch(tabId) {
 
 async function startIlosBatch(tabId, lectures) {
   if (!Number.isInteger(tabId) || tabId < 0 || !Array.isArray(lectures) || !lectures.length || !recoveryStore) {
-    throw new Error('주차별 강의 목록에서 다시 시도해주세요.');
+    throw ilosError('주차별 강의 목록에서 다시 시도해주세요.');
   }
-  if (ilosBatches.has(tabId)) throw new Error('이 탭에서 다운로드 요청이 진행 중입니다.');
+  if (ilosBatches.has(tabId)) throw ilosError('이 탭에서 다운로드 요청이 진행 중입니다.');
   const batch = {};
   ilosBatches.set(tabId, batch); // Reserve before the first await, including storage/tab checks.
   try {
     const key = ilosBatchKey(tabId);
-    const saved = await recoveryStore.get(key);
-    if (saved[key]?.running) throw new Error('이 탭에서 다운로드 요청이 진행 중입니다.');
+    await ilosStaleCleanup;
     const tab = await chrome.tabs.get(tabId);
-    if (!isIlosListUrl(tab.url) || ilosBatches.get(tabId) !== batch) throw new Error('주차별 강의 목록에서 다시 시도해주세요.');
+    if (!isIlosListUrl(tab.url) || ilosBatches.get(tabId) !== batch) throw ilosError('주차별 강의 목록에서 다시 시도해주세요.');
     const selected = lectures.map(({ week, seq, itemId }) => ({ week: String(week), seq: String(seq), itemId: String(itemId || '') }));
-    if (selected.some(item => !/^\d+$/.test(item.week) || !/^\d+$/.test(item.seq))) throw new Error('강의 목록이 올바르지 않습니다.');
+    if (selected.some(item => !/^\d+$/.test(item.week) || !/^\d+$/.test(item.seq))) throw ilosError('강의 목록이 올바르지 않습니다.');
     const state = { running: true, total: selected.length, done: 0, success: 0, failed: 0, rows: {} };
     for (const lecture of selected) state.rows[lecture.seq] = { status: '대기 중', title: `${lecture.week}주차 강의 ${lecture.seq}` };
     await queueStorage(tabId, () => ilosBatches.get(tabId) === batch && recoveryStore.set({ [key]: state }));
@@ -144,9 +150,9 @@ async function runIlosBatch(tabId, lectures, batch, state) {
           result = await resolve();
         }
         if (!active()) return;
-        if (!result || result.error) throw Object.assign(new Error(result?.error || '강의 조회 응답이 없습니다.'), { shown: true });
+        if (!result || result.error) throw ilosError(result?.error || '강의 조회 응답이 없습니다.');
         const urls = LMSIlos.extractMp4Urls(result.url);
-        if (urls.length !== 1 || urls[0] !== result.url) throw Object.assign(new Error('한경대 MP4 영상 주소가 올바르지 않습니다.'), { shown: true });
+        if (urls.length !== 1 || urls[0] !== result.url) throw ilosError('한경대 MP4 영상 주소가 올바르지 않습니다.');
         row.title = String(result.title || `${lecture.week}주차 강의 ${lecture.seq}`);
         await chrome.downloads.download({ url: result.url, filename: downloadFilename(`${row.title}.mp4`), conflictAction: 'uniquify', saveAs: false });
         row.status = '✓ 브라우저 다운로드가 시작되었습니다.';
@@ -168,10 +174,10 @@ async function runIlosBatch(tabId, lectures, batch, state) {
 }
 
 // Clear cache on tab navigation
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if ((changeInfo.url && !isIlosListUrl(changeInfo.url)) ||
-      (changeInfo.status === 'loading' && !isIlosListUrl(changeInfo.url || tab?.url))) clearIlosBatch(tabId);
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'loading' || changeInfo.url) {
+    // Any new document, even another week list, invalidates the lectures of a running batch.
+    clearIlosBatch(tabId);
     tabMediaMap.delete(tabId);
     if (recoveryStore) queueStorage(tabId, () => recoveryStore.remove(recoveryKey(tabId))).catch(() => {});
   }
@@ -189,7 +195,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'ilosBatch') {
     startIlosBatch(request.tabId, request.lectures)
       .then(() => sendResponse({ ok: true }))
-      .catch(error => sendResponse({ error: error.message }));
+      .catch(error => sendResponse({ error: error.shown ? error.message : '다운로드 요청을 시작하지 못했습니다. 주차별 강의 목록을 새로고침한 뒤 다시 시도해주세요.' }));
     return true;
   }
 
