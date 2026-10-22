@@ -38,6 +38,7 @@ async function refreshScan(isManual = false) {
   detectedVideos.clear();
   videoList.replaceChildren();
 
+  let isIlos = false;
   try {
     const tab = await getActiveTab();
     if (!tab || !tab.id) {
@@ -46,6 +47,13 @@ async function refreshScan(isManual = false) {
     }
 
     updateSchoolBadge(tab.url || '');
+    isIlos = /^https:\/\/cyber\.hknu\.ac\.kr\//.test(tab.url || '');
+    if (isIlos) {
+      materialCount = 0;
+      document.getElementById('document-section').classList.add('hidden');
+      await scanIlosTab(tab);
+      return;
+    }
     materialCount = await scanMaterials(tab.id, tab.url);
 
     // 1. Fetch media intercepted by background service worker
@@ -85,13 +93,18 @@ async function refreshScan(isManual = false) {
       }
     }
   } catch (err) {
-    console.error('[popup.js] Scan error:', err);
-    showEmpty(`오류가 발생했습니다: ${err.message}`);
+    if (isIlos) {
+      showEmpty('한경대 강의 화면에 연결하지 못했습니다. 로그인 후 다시 스캔해주세요.');
+      recoveryStatus.textContent = '강의 탐색에 실패했습니다.';
+    } else {
+      console.error('[popup.js] Scan error:', err);
+      showEmpty(`오류가 발생했습니다: ${err.message}`);
+    }
   } finally {
     scanRunning = false;
     rescanBtn.disabled = false;
     emptyRescanBtn.disabled = false;
-    recoveryStatus.textContent = scanStatus(detectedVideos.size, recoveryErrors, materialCount);
+    if (!isIlos) recoveryStatus.textContent = scanStatus(detectedVideos.size, recoveryErrors, materialCount);
   }
 }
 
@@ -141,7 +154,10 @@ async function getActiveTab() {
 function updateSchoolBadge(url) {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    if (hostname.includes('dankook')) {
+    if (hostname === 'cyber.hknu.ac.kr') {
+      schoolBadge.textContent = '한경대학교 e-Class';
+      schoolBadge.className = 'badge badge-primary';
+    } else if (hostname.includes('dankook')) {
       schoolBadge.textContent = '단국대학교 이러닝';
       schoolBadge.className = 'badge badge-primary';
     } else if (hostname.includes('khu')) {
@@ -505,27 +521,30 @@ function renderVideoList() {
       statusMsg.textContent = '다운로드를 시작합니다...';
       statusMsg.classList.remove('hidden');
 
-      chrome.runtime.sendMessage(
-        {
-          action: 'downloadVideo',
-          url: video.videoUrl,
-          filename: fullFilename,
-          referer: video.referer
-        },
-        (res) => {
-          downloadBtn.disabled = false;
-          downloadBtn.textContent = '⬇ 다운로드';
+      const onDownload = (res) => {
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = '⬇ 다운로드';
 
-          if (res && res.success) {
-            statusMsg.className = 'status-msg success';
-            statusMsg.textContent = '✓ 브라우저 다운로드가 시작되었습니다!';
-            showToast('다운로드가 시작되었습니다!');
-          } else {
-            statusMsg.className = 'status-msg error';
-            statusMsg.textContent = `다운로드 실패: ${res?.error || '알 수 없는 오류'}`;
-          }
+        if (res && res.success) {
+          statusMsg.className = 'status-msg success';
+          statusMsg.textContent = '✓ 브라우저 다운로드가 시작되었습니다!';
+          showToast('다운로드가 시작되었습니다!');
+        } else {
+          statusMsg.className = 'status-msg error';
+          statusMsg.textContent = `다운로드 실패: ${res?.error || '알 수 없는 오류'}`;
         }
-      );
+      };
+      if (video.directDownload) {
+        try {
+          await downloadIlosVideo(video.videoUrl, fullFilename);
+          onDownload({ success: true });
+        } catch (error) { onDownload({ error: error.message }); }
+      } else {
+        chrome.runtime.sendMessage({
+          action: 'downloadVideo', url: video.videoUrl,
+          filename: fullFilename, referer: video.referer
+        }, onDownload);
+      }
     });
 
     openBtn.addEventListener('click', () => {

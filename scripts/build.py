@@ -5,7 +5,7 @@ import zipfile
 
 root = Path(__file__).resolve().parents[1]
 version = json.loads((root / 'manifest.json').read_text())['version']
-files = ['manifest.json', 'background.js', 'recovery.js', 'page-capture.js',
+files = ['manifest.json', 'background.js', 'recovery.js', 'ilos.js', 'popup-ilos.js', 'page-capture.js',
          'content-bridge.js', 'popup.js', 'popup.html', 'style.css', 'rules.json',
          'documents.js', 'document-scanner.js', 'converter.html', 'converter.js', 'converter.css',
          'sandbox.html', 'sandbox.css', 'THIRD_PARTY_NOTICES.md', 'icon-16.png', 'icon-48.png', 'icon-128.png', 'logo.svg', 'LICENSE', 'README.md']
